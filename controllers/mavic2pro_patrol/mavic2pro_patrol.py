@@ -61,7 +61,7 @@ class Mavic (Robot):
         self.gps.enable(self.time_step)
         self.gyro = self.getDevice("gyro")
         self.gyro.enable(self.time_step)
-        
+
         #vision stuff
         self.depth_model = load_model()
         self.last_depth_time = -float("inf")
@@ -147,36 +147,36 @@ class Mavic (Robot):
         return "FORWARD"
     def run(self):
         t1 = self.getTime()
-        self.target_altitude = 3.0  
+        self.target_altitude = 3.0
 
         phase = "TAKEOFF"
         action = "HOLD"
         forward_pitch = -0.5
         turn_yaw = 0.2
-        
+
         roll_disturbance = 0
         pitch_disturbance = 0
         yaw_disturbance = 0
 
 
         while self.step(self.time_step) != -1:
-                
+
             # Read sensors
             roll, pitch, yaw = self.imu.getRollPitchYaw()
             x_pos, y_pos, altitude = self.gps.getValues()
             roll_acceleration, pitch_acceleration, _ = self.gyro.getValues()
             self.set_position([x_pos, y_pos, altitude, roll, pitch, yaw])
-            
+
             if phase == "TAKEOFF":
                 if altitude >= self.target_altitude - 0.2:
                     phase = "NAVIGATE"
             if phase == "NAVIGATE":
-            
+
                 now = self.getTime()
                 if now - self.last_depth_time > self.depth_interval:
                     self.last_depth_time = now
                     image_bytes = self.camera.getImage()
-        
+
                     if image_bytes is not None:
                         frame = np.frombuffer(image_bytes, dtype=np.uint8).reshape(
                             self.camera.getHeight(),
@@ -184,11 +184,11 @@ class Mavic (Robot):
                             4
                         )
                         frame = frame[:, :, :3].copy()  # BGRA → BGR
-                    
-                        # raw_depth = process_frame(self.depth_model, frame)
-                        
-                        # action = choose_action(raw_depth, action)
-                        action = "FORWARD"
+
+                        raw_depth = process_frame(self.depth_model, frame)
+
+                        action = choose_action(raw_depth, action)
+                        #action = "FORWARD"
                 if action == "FORWARD":
                     pitch_disturbance = forward_pitch
 
@@ -197,10 +197,10 @@ class Mavic (Robot):
 
                 elif action == "TURN_RIGHT":
                     yaw_disturbance = -turn_yaw
-                    
+
                         # Start with this to verify the connection:
                         #print(raw_depth.shape)
-                    
+
 
             roll_input = self.K_ROLL_P * clamp(roll, -1, 1) + roll_acceleration + roll_disturbance
             pitch_input = self.K_PITCH_P * clamp(pitch, -1, 1) + pitch_acceleration + pitch_disturbance
